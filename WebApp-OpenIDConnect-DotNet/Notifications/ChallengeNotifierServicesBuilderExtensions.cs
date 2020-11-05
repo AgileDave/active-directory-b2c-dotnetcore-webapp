@@ -20,14 +20,12 @@ namespace WebApp_OpenIDConnect_DotNet
             {
                 // this is only disposing here because we won't use it again and there isn't a clean way to swap handlers on the same httpclient instance
                 // note the addition of ConnectionClose = true - this will kill the socket immediately after use instead of keeping it open - which is what we want here
-                using (var h = new HttpClient(new SocketsHttpHandler() { AllowAutoRedirect = false }))
+                using var h = new HttpClient(new SocketsHttpHandler() { AllowAutoRedirect = false });
+                h.DefaultRequestHeaders.ConnectionClose = true; // we don't need it after this call, so let's trash it and the socket immediately
+                var request = h.GetAsync(path).Result;
+                if (request.StatusCode == System.Net.HttpStatusCode.Moved || request.StatusCode == System.Net.HttpStatusCode.Redirect)
                 {
-                    h.DefaultRequestHeaders.ConnectionClose = true; // we don't need it after this call, so let's trash it and the socket immediately
-                    var request = h.GetAsync(path).Result;
-                    if (request.StatusCode == System.Net.HttpStatusCode.Moved || request.StatusCode == System.Net.HttpStatusCode.Redirect)
-                    {
-                        path = request.Headers.Location;
-                    }
+                    path = request.Headers.Location;
                 }
             }
 

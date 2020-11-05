@@ -18,7 +18,7 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
 {
     public class HomeController : Controller
     {
-        AzureAdB2COptions AzureAdB2COptions;
+        private readonly AzureAdB2COptions AzureAdB2COptions;
         public HomeController(IOptions<AzureAdB2COptions> azureAdB2COptions)
         {
             AzureAdB2COptions = azureAdB2COptions.Value;
@@ -49,7 +49,7 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
         [Authorize]
         public async Task<IActionResult> Api()
         {
-            string responseString = "";
+            string responseString;
             try
             {
                 // Retrieve the token with the specified scopes
@@ -62,7 +62,7 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
                     .WithClientSecret(AzureAdB2COptions.ClientSecret)
                     .WithB2CAuthority(AzureAdB2COptions.Authority)
                     .Build();
-                new MSALStaticCache(signedInUserID, this.HttpContext).EnablePersistence(cca.UserTokenCache);
+                new MSALStaticCache(signedInUserID).EnablePersistence(cca.UserTokenCache);
 
                 var accounts = await cca.GetAccountsAsync();
                 AuthenticationResult result = await cca.AcquireTokenSilent(scope, accounts.FirstOrDefault())
@@ -76,18 +76,12 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
                 HttpResponseMessage response = await client.SendAsync(request);
 
                 // Handle the response
-                switch (response.StatusCode)
+                responseString = response.StatusCode switch
                 {
-                    case HttpStatusCode.OK:
-                        responseString = (await response.Content.ReadAsStringAsync()).Replace("},",$"}}, {Environment.NewLine}");
-                        break;
-                    case HttpStatusCode.Unauthorized:
-                        responseString = $"Please sign in again.{Environment.NewLine} {response.ReasonPhrase}";
-                        break;
-                    default:
-                        responseString = $"Error calling API.{Environment.NewLine} StatusCode=${response.StatusCode}";
-                        break;
-                }
+                    HttpStatusCode.OK => (await response.Content.ReadAsStringAsync()).Replace("},", $"}}, {Environment.NewLine}"),
+                    HttpStatusCode.Unauthorized => $"Please sign in again.{Environment.NewLine} {response.ReasonPhrase}",
+                    _ => $"Error calling API.{Environment.NewLine} StatusCode=${response.StatusCode}",
+                };
             }
             catch (MsalUiRequiredException ex)
             {
@@ -98,7 +92,7 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
                 responseString = $"Error calling API:{Environment.NewLine} {ex.Message}";
             }
 
-            ViewData["Payload"] = $"{responseString}";            
+            ViewData["Payload"] = $"{responseString}";
             return View();
         }
 

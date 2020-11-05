@@ -8,11 +8,10 @@ namespace WebApp_OpenIDConnect_DotNet.Models
 {
     public class MSALSessionCache
     {
-        private static ReaderWriterLockSlim SessionLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-        string UserId = string.Empty;
-        string CacheId = string.Empty;
+        private static readonly ReaderWriterLockSlim SessionLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+        private readonly string UserId = string.Empty;
+        private readonly string CacheId = string.Empty;
         private readonly HttpContext httpContext = null;
-        private ITokenCache cache;
 
         public MSALSessionCache(string userId, HttpContext httpcontext)
         {
@@ -24,7 +23,6 @@ namespace WebApp_OpenIDConnect_DotNet.Models
 
         public ITokenCache EnablePersistence(ITokenCache cache)
         {
-            this.cache = cache;
             cache.SetBeforeAccess(BeforeAccessNotification);
             cache.SetAfterAccess(AfterAccessNotification);
             return cache;
@@ -38,7 +36,7 @@ namespace WebApp_OpenIDConnect_DotNet.Models
         }
         public string ReadUserStateValue()
         {
-            string state = string.Empty;
+            string state;
             SessionLock.EnterReadLock();
             state = (string)httpContext.Session.GetString(CacheId + "_state");
             SessionLock.ExitReadLock();
@@ -48,7 +46,7 @@ namespace WebApp_OpenIDConnect_DotNet.Models
         {
             SessionLock.EnterReadLock();
             byte[] blob = httpContext.Session.Get(CacheId);
-            if(blob != null)
+            if (blob != null)
             {
                 args.TokenCache.DeserializeMsalV3(blob);
             }

@@ -51,7 +51,17 @@ namespace WebApp_OpenIDConnect_DotNet
                 {
                     OnRedirectToIdentityProvider = OnRedirectToIdentityProvider,
                     OnRemoteFailure = OnRemoteFailure,
-                    OnAuthorizationCodeReceived = OnAuthorizationCodeReceived
+                    OnAuthorizationCodeReceived = OnAuthorizationCodeReceived,
+                    
+                    OnTokenValidated = ctx => {
+                        var i = new ClaimsIdentity();
+                        i.AddClaims(new List<Claim> {
+                            new Claim("extension_CustomAdmin", "John"),
+                            new Claim("RestAdmin", "12CD")
+                        });
+                        ctx.Principal.AddIdentity(i);
+                        return Task.CompletedTask;
+                    }
                 };
             }
 
@@ -112,7 +122,7 @@ namespace WebApp_OpenIDConnect_DotNet
                     .WithRedirectUri(AzureAdB2COptions.RedirectUri)
                     .WithClientSecret(AzureAdB2COptions.ClientSecret)
                     .Build();
-                new MSALStaticCache(signedInUserID, context.HttpContext).EnablePersistence(cca.UserTokenCache);
+                new MSALStaticCache(signedInUserID).EnablePersistence(cca.UserTokenCache);
 
                 try
                 {
@@ -122,7 +132,7 @@ namespace WebApp_OpenIDConnect_DotNet
 
                     context.HandleCodeRedemption(result.AccessToken, result.IdToken);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     //TODO: Handle
                     throw;
